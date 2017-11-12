@@ -1,9 +1,25 @@
-all: impaciente
+COMPILER = gcc
+OPTIONS = -c -g -Wall
 
-clean: 
-	@rm -f *.o 
+all: cliente servidor
 
-impaciente: impaciente.c 
-	gcc $(CFLAGS) -o $@ impaciente.c
+servidor: tp_socket.o common.o servidor.o
+	$(COMPILER) tp_socket.o common.o servidor.o -o servidor
 
-tp_socket.o: tp_socket.c tp_socket.h
+cliente: tp_socket.o common.o cliente.o
+	$(COMPILER) tp_socket.o common.o cliente.o -o cliente
+
+servidor.o: servidor.c
+	$(COMPILER) $(OPTIONS) servidor.c
+
+cliente.o: cliente.c
+	$(COMPILER) $(OPTIONS) cliente.c
+
+common.o: common.c
+	$(COMPILER) $(OPTIONS) common.c
+
+tp_socket.o: tp_socket.c
+	$(COMPILER) $(OPTIONS) tp_socket.c
+
+clean:
+	rm -f *.o cliente servidor janela tp_socket
