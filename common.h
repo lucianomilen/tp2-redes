@@ -15,12 +15,12 @@
 #include <stdlib.h>
 
 struct sockaddr_in addr;
-int sentPack;
-int recPack;
-int dispPack;
-int resentPack;
-int recACK;
-int sentACK;
+int sentPacks;
+int recPacks;
+int dispPacks;
+int resentPacks;
+int recACKs;
+int sentACKs;
 int sockID;
 int packID;
 int lastACKID;

@@ -6,17 +6,17 @@ int recebeBuffer(char *buffer, int buffSize){
         char pack[HEADER + buffSize];
         char ACKMSG[HEADER + buffSize];
 
-        recBytes=tp_recvfrom(sockID, pack, HEADER + buffSize, (so_addr*)&addr);
-        recPack++;
+        recBytes = tp_recvfrom(sockID, pack, HEADER + buffSize, (so_addr*)&addr);
+        recPacks++;
 
         //Cliente recebeu um pacote que já foi recebido (servidor não recebeu o ACK daquele pacote)
         while(getPackID(pack) != packID) {
                 createPack(ACKMSG, getPackID(pack), ACK_TYPE, HEADER + pack, buffSize);
                 tp_sendto(sockID, pack, HEADER + buffSize, (so_addr*)&addr);
-                sentACK++;
+                sentACKs++;
                 //o pacote é descartado
                 recBytes = tp_recvfrom(sockID, pack, HEADER + buffSize, (so_addr*)&addr);
-                dispPack++;
+                dispPacks++;
         }
 
         //Caso o pacote recebido seja do FINAL_TYPE
@@ -31,11 +31,12 @@ int recebeBuffer(char *buffer, int buffSize){
                 tp_sendto(sockID, ACKMSG, HEADER + buffSize, (so_addr*)&addr);
         }
 
-        sentACK++;
+        sentACKs++;
         packID++;
 
         //Copia a mensagem para o buffer
         strncpy(buffer, HEADER + pack, buffSize);
+        // printf("buffer_%s\n",HEADER + pack);
         return recBytes - HEADER;
 }
 
@@ -46,7 +47,7 @@ int sendFileName(char *buffer, int buffSize){
 
         int sent = 0;
         sent = tp_sendto(sockID, pack, buffSize + HEADER, (so_addr*)&addr);
-        sentPack++;
+        sentPacks++;
 
         return sent;
 }
@@ -112,15 +113,17 @@ int main(int argc, char * argv[]) {
 
         //Abre arquivo que vai ser gravado
         strcat(fileName, "_"); //para nao dar conflito no diretorio
-        fp = fopen(fileName, "w");
+        fp = fopen(fileName, "w+");
 
         //Recebe buffer até que perceba que arquivo acabou
-        while((recBytes = recebeBuffer(buffer, buffSize)) > 0)
-                sumRecBytes += fwrite(buffer, 1, recBytes, fp);
-
+        while((recBytes = recebeBuffer(buffer, buffSize)) > 0) {
+                //sumRecBytes += fwrite(buffer, 1, recBytes, fp);
+                printf("recBytes %d\n", recBytes);
+                fprintf(fp, "%s", buffer);
+        }
         //Fecha arquivo
-        fclose(fp);
         free(buffer);
+        fclose(fp);
         free(serverHost);
         free(fileName);
 
@@ -135,7 +138,7 @@ int main(int argc, char * argv[]) {
         printf("\nBuffer = \%5u byte(s), \%10.2f kbps (\%u bytes em \%3.06f s)\n",buffSize,kbps,sumRecBytes,elapsedTime);
 
         //Fecha conexão
-        printf("Reenvios: %d\nPacotes enviados: %d\nPacotes recebidos: %d\nACKs enviados: %d\nACKs recebidos: %d\n",resentPack,sentPack,recPack,sentACK,recACK);
+        printf("Reenvios: %d\nPacotes enviados: %d\nPacotes recebidos: %d\nACKs enviados: %d\nACKs recebidos: %d\nPacotes descartados: %d",resentPacks,sentPacks,recPacks,sentACKs,recACKs,dispPacks);
         close(sockID);
 
         printf("\nFim Conexão Cliente!\n");

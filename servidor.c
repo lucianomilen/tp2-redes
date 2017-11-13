@@ -1,7 +1,7 @@
 #include "common.h"
 
 void closeServer(){
-        printf("Reenvios: %d\nPacotes enviados: %d\nPacotes recebidos: %d\nPacotes descartados: %d\nACKs enviados: %d\nACKs recebidos: %d\n",resentPack,sentPack,recPack,dispPack,sentACK,recACK);
+        printf("Reenvios: %d\nPacotes enviados: %d\nPacotes recebidos: %d\nPacotes descartados: %d\nACKs enviados: %d\nACKs recebidos: %d\n",resentPacks,sentPacks,recPacks,dispPacks,sentACKs,recACKs);
         close(sockID);
 }
 
@@ -9,24 +9,27 @@ void closeServer(){
 int sendBuff(char *buffer, int buffSize){
 
         int ACKs = -1, SENT = 0, pack_id;
-        char pack[HEADER + buffSize];
-        char ACKMSG[HEADER + buffSize];
-        char RESENT[HEADER + buffSize];
+
+        unsigned MSG_SIZE = HEADER + buffSize;
+
+        char pack[MSG_SIZE];
+        char ACKMSG[MSG_SIZE];
+        char RESENT[MSG_SIZE];
 
         createPack(pack, packID, DATA_TYPE, buffer, buffSize);
 
-        ACKs = tp_recvfrom(sockID, ACKMSG, HEADER + buffSize, (so_addr*)&addr);
+        ACKs = tp_recvfrom(sockID, ACKMSG, MSG_SIZE, (so_addr*)&addr);
 
         //Servidor não recebeu nenhum ACK. É preciso reenviar todos os pacotes do buffer antes de continuar
         while(ACKs == -1) {
                 pack_id = 0;
                 createPack(RESENT, pack_id, DATA_TYPE, HEADER + recBuff, buffSize);
                 tp_sendto(sockID, RESENT, buffSize + HEADER, (so_addr*)&addr);
-                sentPack++;
-                resentPack++;
-                ACKs = tp_recvfrom(sockID, ACKMSG, HEADER + buffSize, (so_addr*)&addr);
+                sentPacks++;
+                resentPacks++;
+                ACKs = tp_recvfrom(sockID, ACKMSG, MSG_SIZE, (so_addr*)&addr);
         }
-        recACK++;
+        recACKs++;
 
         //Servidor recebe o ACK de um pacote não esperado
         if(getPackID(ACKMSG) != lastACKID) {
@@ -34,11 +37,12 @@ int sendBuff(char *buffer, int buffSize){
         }
 
         lastACKID++;
+
         strcpy(recBuff, pack);
 
         //Envia o pacote para o cliente
-        SENT = tp_sendto(sockID, pack, HEADER + buffSize, (so_addr*)&addr);
-        sentPack++;
+        SENT = tp_sendto(sockID, pack, MSG_SIZE, (so_addr*)&addr);
+        sentPacks++;
         packID++;
         timer(1);
 
@@ -52,11 +56,12 @@ int signalEOF(int buffSize){
         createPack(pack, packID, FINAL_TYPE, NULL, 0);
 
         tp_sendto(sockID, pack, HEADER, (so_addr*)&addr);
-        sentPack++;
+        sentPacks++;
 
-        do {
+        do
+        {
                 tp_recvfrom(sockID, pack, HEADER+buffSize, (so_addr*)&addr);
-                recACK++;
+                recACKs++;
         } while(pack[HEADER - 2] != FINAL_TYPE);          //Espera a confirmação do ack final
 
         timer(1);
@@ -76,12 +81,12 @@ int startServer(int porto_servidor, int buffSize){
 
         packID = 0;
         lastACKID = 0;
-        recACK = 0;
-        sentACK = 0;
-        recPack = 0;
-        sentPack = 0;
-        dispPack = 0;
-        resentPack = 0;
+        recACKs = 0;
+        sentACKs = 0;
+        recPacks = 0;
+        sentPacks = 0;
+        dispPacks = 0;
+        resentPacks = 0;
 
         recBuff = (char*) malloc(sizeof(char) * (HEADER + buffSize));
 
@@ -92,7 +97,7 @@ int getFileName(char *buffer, int buffSize){
 
         char fileNamePack[HEADER + buffSize];         //cria pacote com o nome do arquivo
         int rec_packs = tp_recvfrom(sockID, fileNamePack, HEADER + buffSize, (so_addr*)&addr);
-        recPack++;
+        recPacks++;
         strncpy(buffer, HEADER + fileNamePack, buffSize);         //copia para o buffer
         timer(1);
         return rec_packs - HEADER;

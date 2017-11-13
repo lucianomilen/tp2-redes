@@ -4,7 +4,7 @@ int getPackID(char *pack){
 
 								int pack_id;
 								memcpy(&pack_id,&pack[0],4);
-
+								printf("\tGETPACKID %d\n", pack_id);
 								return pack_id;
 }
 
