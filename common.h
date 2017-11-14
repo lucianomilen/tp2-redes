@@ -1,3 +1,6 @@
+//COMMON.H - LUCIANO OTONI MILEN [2012079754]
+
+
 #ifndef COMMON_H
 #define COMMON_H
 
@@ -14,8 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct sockaddr_in addr;
-int sentPacks;
+struct sockaddr_in addr; //endereço do socket
+int sentPacks; // o nome já diz pra que serve, estatisticas...
 int recPacks;
 int dispPacks;
 int resentPacks;

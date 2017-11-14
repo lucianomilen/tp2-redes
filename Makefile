@@ -1,3 +1,5 @@
+#COMMON.H - LUCIANO OTONI MILEN [2012079754]
+
 all: cliente servidor
 
 servidor: tp_socket.o common.o servidor.o

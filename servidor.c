@@ -1,55 +1,57 @@
+//SERVIDOR.C - LUCIANO OTONI MILEN [2012079754]
+
 #include "common.h"
 
-void closeServer(){
-        printf("Reenvios: %d\nPacotes enviados: %d\nPacotes recebidos: %d\nPacotes descartados: %d\nACKs enviados: %d\nACKs recebidos: %d\n",resentPacks,sentPacks,recPacks,dispPacks,sentACKs,recACKs);
+void closeServer(){ //finaliza o servidor
+        printf("Resent: %d packets\nSent: %d packets\nReceived: %d packets\nDisposed: %d packets\nSent: %d ACKs\nReceived: %d ACKs\n",resentPacks, sentPacks, recPacks, dispPacks, sentACKs, recACKs);
         close(sockID);
 }
 
 
 int sendBuff(char *buffer, int buffSize){
 
-        int ACKs = -1, SENT = 0, pack_id;
+        int ACKs = -1, SENT = 0, pack_id; //ACKs começa como -1 pra ser incrementado pra 1 logo em seguida
 
-        unsigned MSG_SIZE = HEADER + buffSize;
+        unsigned MSG_SIZE = HEADER + buffSize; // SEMPRE devemos somar o tamanho do cabeçalho ao tamanho da mensagem
 
         char pack[MSG_SIZE];
         char ACKMSG[MSG_SIZE];
         char RESENT[MSG_SIZE];
 
-        createPack(pack, packID, DATA_TYPE, buffer, buffSize);
+        createPack(pack, packID, DATA_TYPE, buffer, buffSize); //cria um pacote do tipo DATA_TYPE para enviar dados ao cliente
 
-        ACKs = tp_recvfrom(sockID, ACKMSG, MSG_SIZE, (so_addr*)&addr);
+        ACKs = tp_recvfrom(sockID, ACKMSG, MSG_SIZE, (so_addr*)&addr); // recebe os ACKs do cliente
 
-        //Servidor não recebeu nenhum ACK. É preciso reenviar todos os pacotes do buffer antes de continuar
+        //nenhum ACK foi recebido. ou seja, o primeiro pacote deve ser reenviado
         while(ACKs == -1) {
-                pack_id = 0;
+                pack_id = 0; //com o id 0, o primeiro
                 createPack(RESENT, pack_id, DATA_TYPE, HEADER + recBuff, buffSize);
                 tp_sendto(sockID, RESENT, buffSize + HEADER, (so_addr*)&addr);
                 sentPacks++;
-                resentPacks++;
+                resentPacks++; //incrementa os reenvios
                 ACKs = tp_recvfrom(sockID, ACKMSG, MSG_SIZE, (so_addr*)&addr);
         }
         recACKs++;
 
-        //Servidor recebe o ACK de um pacote não esperado
+        //o ACK recebido veio com ID errado. desta forma, o último ACK recebido deve ser atualizado
         if(getPackID(ACKMSG) != lastACKID) {
                 lastACKID = getPackID(ACKMSG);
         }
 
         lastACKID++;
 
-        strcpy(recBuff, pack);
+        strcpy(recBuff, pack); //grava no buffer o pacote recebido
 
-        //Envia o pacote para o cliente
+        // manda o pacote pro cliente, com o timeout registrado!!!
         SENT = tp_sendto(sockID, pack, MSG_SIZE, (so_addr*)&addr);
         sentPacks++;
         packID++;
-        timer(1);
+        timer(1); // parte importante
 
-        return SENT;
+        return SENT; // retorna quantos Bytes foram enviados
 }
 
-int signalEOF(int buffSize){
+int signalEOF(int buffSize){ // função simples que envia o sinal de que acabou a transferencia
 
         char pack[HEADER + buffSize];
 
@@ -62,17 +64,17 @@ int signalEOF(int buffSize){
         {
                 tp_recvfrom(sockID, pack, HEADER+buffSize, (so_addr*)&addr);
                 recACKs++;
-        } while(pack[HEADER - 2] != FINAL_TYPE);          //Espera a confirmação do ack final
+        } while(pack[HEADER - 2] != FINAL_TYPE);
 
-        timer(1);
+        timer(1); // com timeout no pacote
         return 1;
 }
 
-int startServer(int porto_servidor, int buffSize){
+int startServer(int serverPort, int buffSize){ //init o servidor com as funções da lib fornecidas
 
         tp_init();
 
-        sockID = tp_socket(porto_servidor);
+        sockID = tp_socket(serverPort);
 
         if(sockID < 0) {
                 printf("Unable to create server socket\n");
@@ -86,67 +88,67 @@ int startServer(int porto_servidor, int buffSize){
         recPacks = 0;
         sentPacks = 0;
         dispPacks = 0;
-        resentPacks = 0;
+        resentPacks = 0; // as variáveis de estatística definidas no common.h são inicializadas
 
         recBuff = (char*) malloc(sizeof(char) * (HEADER + buffSize));
 
-        return sockID;
+        return sockID; //cria o socket e retorna pro main informar o cliente
 }
 
 int getFileName(char *buffer, int buffSize){
 
-        char fileNamePack[HEADER + buffSize];         //cria pacote com o nome do arquivo
+        char fileNamePack[HEADER + buffSize]; // o tamanho deve considerar o tamanho do cabeçalho sempre...
         int rec_packs = tp_recvfrom(sockID, fileNamePack, HEADER + buffSize, (so_addr*)&addr);
-        recPacks++;
-        strncpy(buffer, HEADER + fileNamePack, buffSize);         //copia para o buffer
-        timer(1);
-        return rec_packs - HEADER;
+        recPacks++; // tem que incrementar o numero de pacotes recebidos
+        strncpy(buffer, HEADER + fileNamePack, buffSize); //joga no buffer com o tamanho correto
+        timer(1); //timeout
+        return rec_packs - HEADER; // conta somente quantos bytes do nome do arquivo foram recebidos
 }
 
 int main(int argc, char *argv[]){
 
-        //Declaração das variaveis
-        int porto_servidor, buffSize, readBytes;
+        int serverPort, buffSize, readBytes;
         char *buffer;
 
-        if(argc < 3) {
-                printf("Usage: ./servidor <porto_servidor> <buffSize>\n");
+        if(argc < 3) { //tem que rodar com os argumentos corretos!
+                printf("Usage: ./servidor <serverPort> <buffSize>\n");
                 exit(1);
         }
 
-        porto_servidor = atoi(argv[1]);
+        serverPort = atoi(argv[1]);
         buffSize = atoi(argv[2]);
 
-        //Faz abertura passiva e aguarda conexao
-        startServer(porto_servidor, buffSize);
+        //inicializa o servidor, com o buffSize fornecido como parametro
+        startServer(serverPort, buffSize);
         printf("Waiting client connection...\n");
 
-        //Recebe a string com o nome do arquivo
+        // inicializa o buffer com a memoria definida no buffSize
         buffer = (char*) malloc(sizeof(char) * buffSize);
-        if(getFileName(buffer, buffSize) < 0) {
+        if(getFileName(buffer, buffSize) < 0) { // verifica se recebeu direito o nome do arquivo
                 printf("Unable to get file name\n");
                 return 0;
         }
-        //Abre o arquivo que vai ser lido, se der erro, fecha conexao e termina
+        // tenta abrir o arquivo que o cliente pediu
         FILE *fp = fopen(buffer, "r");
 
-        if(fp == NULL) {
+        if(fp == NULL) { //tratamento de erro
                 printf("Unable to open file\n");
                 closeServer();
                 return 0;
         }
 
-        //Le o arquivo, um buffer por vez ate fread retornar zero
+        // contabiliza o numero de bytes lidos
         readBytes = 0;
 
         while((readBytes = fread(buffer, 1, buffSize, fp)) != 0) {
-                sendBuff(buffer, readBytes);
+                sendBuff(buffer, readBytes); //enquanto tiver byte pra ler manda pro cliente
         }
-        //Fecha arquivo e conexao
+        //acabou, pode avisar o cliente
         if(signalEOF(buffSize) == 1) {
                 printf("Arquivo enviado ao cliente!\n");
         }
 
+        //fecha tudo
         free(buffer);
         fclose(fp);
         closeServer();
